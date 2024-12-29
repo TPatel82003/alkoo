@@ -1,6 +1,9 @@
 export function calculateProgress(data: number, totalData: number) {
   return (data / totalData) * 100;
 }
+export function inverseProgress(data: number, totalData: number) {
+  return 100 - calculateProgress(data, totalData);
+}
 export function getStatusColor(status: string) {
   switch (status) {
     case "initialize":
@@ -43,14 +46,36 @@ export function getStatusPercentage(status: string) {
 }
 
 export function calculateAverageLatency(latency: number[]): number {
-  console.log(latency);
-  var lat: number = 0;
-  for (let i = 1; i < latency.length; i++) {
-    lat += latency[i] - latency[i - 1];
-  }
-  return lat / latency.length;
+  return latency.reduce((acc, curr) => acc + curr, 0) / latency.length;
 }
 
+export function calculateAverageSpeed(
+  speed: number[],
+  fixBytesSize: number
+): number {
+  speed = speed.map((s) => fixBytesSize / s);
+  return speed.reduce((acc, curr) => acc + curr, 0) / speed.length;
+}
+
+export const unpackBinaryData = (data: Blob) =>
+  new Promise<number>(async (resolve, reject) => {
+    const arrayBuffer = await data.arrayBuffer();
+    const dataview = new DataView(arrayBuffer);
+    const chunkSize = dataview.byteLength - 8;
+    const sendTime = dataview.getFloat64(chunkSize) * 1000;
+    resolve(Date.now() - sendTime);
+  });
+
+export const packBinaryData = (data: number) => {
+  const totalChunkSize = data + 8;
+  const buffer = new ArrayBuffer(totalChunkSize);
+  const dataview = new DataView(buffer);
+  const time = Date.now();
+  console.log(time);
+  dataview.setFloat64(data, time, false);
+  console.log(dataview.byteLength);
+  return dataview;
+};
 export enum SocketStatus {
   Initialize = "initialize",
   Connecting = "connecting",
@@ -60,4 +85,12 @@ export enum SocketStatus {
   DownloadDone = "download done",
   UploadDone = "upload done",
   Disconnected = "disconnected",
+}
+
+export function safeParse<T>(data: string): T | null {
+  try {
+    return JSON.parse(data) as T;
+  } catch (e) {
+    return null;
+  }
 }

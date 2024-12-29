@@ -7,6 +7,8 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useState } from "react";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { allowedDistance, allowedSize, allowedSpeed, allowedTime, PreferenceType } from "./type";
+
 export function Dialogbox({
   isOpen,
   onClose,
@@ -15,35 +17,35 @@ export function Dialogbox({
   onClose: () => void;
 }) {
   const [open, setIsOpen] = useState<boolean>(isOpen);
-  const [distance, setDistance] = useState<string>("Kilometer");
-  const [speed, setSpeed] = useState<string>("Mbps");
-  const [time, setTime] = useState<string>("12-hour");
+  const [preference, setPreference] = useState<PreferenceType>({
+    distance: "Mile",
+    speed: "Mbps",
+    time: "12-hour",
+    size: "1"
+  });
+
+  const OPTIONS: {
+    [key in keyof PreferenceType]: allowedDistance[] | allowedSpeed[] | allowedTime[] | allowedSize[];
+  } = {
+    distance: ["Mile", "Kilometer"],
+    speed: ["Mbps", "Kbps"],
+    time: ["12-hour", "24-hour"],
+    size: ["1", "10", "100", "1000"],
+  };
 
   useEffect(() => {
     setIsOpen(isOpen);
   }, [isOpen]);
-  const activeUnit = (unit: string) => {
-    return `transition-all duration-200 ${
-      speed === unit || distance === unit || time === unit
-        ? "underline underline-offset-2 text-[#1cbfff]"
-        : ""
-    }`;
-  };
-  useEffect(() => {
-    const { distance, speed, time } = JSON.parse(
-      localStorage.getItem("preference") || "{}"
-    );
-    setDistance(distance || "Kilometer");
-    setSpeed(speed || "Mbps");
-    setTime(time || "12-hour");
-  }, []);
 
-  useEffect(() => {
-    localStorage.setItem(
-      "preference",
-      JSON.stringify({ distance, speed, time })
-    );
-  }, [distance, speed, time]);
+  const activeUnit = (unit: string) =>
+    `transition-all duration-200 ${Object.values(preference).includes(unit) ? "underline underline-offset-2 text-[#1cbfff]" : ""}`;
+
+  const onChange = (key: keyof PreferenceType, value: string) => {
+    const newPreference = { ...preference, [key]: value };
+    setPreference(newPreference);
+    localStorage.setItem("preference", JSON.stringify(newPreference));
+  };
+
   return (
     <Dialog
       open={open}
@@ -60,65 +62,26 @@ export function Dialogbox({
           <DialogTitle className="font-semibold text-[18px] text-[#9193a8]">
             Settings
           </DialogTitle>
-          <div className="flex justify-between items-center gap-8">
-            <div className="flex-col gap-4">
-              <div>Distance</div>
-              <div className="flex gap-2 font-semibold text-[#9193a8] text-[15px] cursor-pointer">
-                <div
-                  className={activeUnit("Kilometer")}
-                  onClick={() => setDistance("Kilometer")}
-                >
-                  Kilometer
-                </div>
-                <div
-                  className={activeUnit("Mile")}
-                  onClick={() => setDistance("Mile")}
-                >
-                  Mile
-                </div>
-              </div>
-            </div>
-            <div className="flex-col gap-4">
-              <div>Speed</div>
-              <div className="flex gap-2 font-semibold text-[#9193a8] text-[15px] cursor-pointer">
-                <div
-                  className={activeUnit("Mbps")}
-                  onClick={() => setSpeed("Mbps")}
-                >
-                  Mbps
-                </div>
-                <div
-                  className={activeUnit("Kbps")}
-                  onClick={() => setSpeed("Kbps")}
-                >
-                  Kbps
+          <div className="flex justify-between items-center gap-8 flex-wrap">
+            {Object.entries(OPTIONS).map(([key, options]) => (
+              <div className="flex-col gap-4" key={key}>
+                <div>{key}</div>
+                <div className="flex gap-2 font-semibold text-[#9193a8] text-[15px] cursor-pointer">
+                  {options.map((option) => (
+                    <div
+                      className={activeUnit(option)}
+                      onClick={() => onChange(key as keyof PreferenceType, option)}
+                      key={option}
+                    >
+                      {option} {key === "size" && "Mb"}
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-            <div className="flex-col gap-4">
-              <div>Time</div>
-              <div className="flex gap-2 font-semibold text-[#9193a8] text-[15px] cursor-pointer">
-                <div
-                  className={activeUnit("12-hour")}
-                  onClick={() => setTime("12-hour")}
-                >
-                  12-hour
-                </div>
-                <div
-                  className={activeUnit("24-hour")}
-                  onClick={() => setTime("24-hour")}
-                >
-                  24-hour
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
-          <div className="text-[14px] text-[#9193a8] flex items-center">
-            <FontAwesomeIcon
-              icon={faInfoCircle}
-              height={25}
-              width={25}
-            ></FontAwesomeIcon>
+          <div className="text-[14px] text-[#9193a8] flex gap-2 items-center">
+            <FontAwesomeIcon icon={faInfoCircle} height={25} />
             <p>All user preferences are saved in local storage</p>
           </div>
         </DialogPanel>
