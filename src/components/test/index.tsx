@@ -134,13 +134,6 @@ export function Test() {
                     downloadLatency: latency,
                 };
             });
-            // localStorage.setItem(
-            //     "Results",
-            //     JSON.stringify([
-            //         ...JSON.parse(localStorage.getItem("Results") || "[]"),
-            //         result,
-            //     ])
-            // );
             return uploadSpeedTest();
         }).then((data: number[]) => {
             const speed = Math.floor(
