@@ -3,6 +3,7 @@ import {
     calculateAverageLatency,
     calculateAverageSpeed,
     calculateProgress,
+    getFileSize,
     inverseProgress,
     packBinaryData,
     SocketStatus,
@@ -12,7 +13,8 @@ import Circle from "../../utils/circle";
 import { MetricsType } from "../metrics/type";
 import { Dialogbox } from "../dialog";
 import { Metrics } from "../metrics";
-import { BadgeText } from "../settings";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowDown, faArrowUp, faCheck, faGear } from "@fortawesome/free-solid-svg-icons";
 
 export function Test() {
     const [percentage, setPercentage] = useState(0);
@@ -20,7 +22,28 @@ export function Test() {
     const [status, setStatus] = useState<SocketStatus>(SocketStatus.Initialize);
     const [metrics, setMetrics] = useState<MetricsType>({});
     const maxPacketSize = 1048576;
-    const totalBytes = 104857600;
+    const totalBytes = 1048576 * getFileSize();
+    const handshake = () => new Promise<number>((resolve, reject) => {
+        const ws = new WebSocket("ws://localhost:8765");
+        let ts = 0;
+        ws.onopen = () => {
+            ts = performance.now();
+            ws.send("PING");
+        };
+        ws.onerror = (error) => {
+            reject(error);
+        };
+        ws.onmessage = (message) => {
+            const { data: msg } = message;
+            if (typeof msg === "string") {
+                if (msg === "PONG") {
+                    resolve(
+                        Math.floor(performance.now() - ts)
+                    );
+                }
+            }
+        };
+    });
     const downloadSpeed = () =>
         new Promise<number[]>((resolve, reject) => {
             setStatus(SocketStatus.Connecting);
@@ -59,7 +82,6 @@ export function Test() {
     const uploadSpeedTest = () =>
         new Promise<number[]>((resolve, reject) => {
             const ws = new WebSocket("ws://localhost:8765");
-            console.log(ws);
             const maxPacket = totalBytes / maxPacketSize;
             const latency: number[] = new Array(totalBytes / maxPacketSize);
             ws.onopen = () => {
@@ -75,6 +97,7 @@ export function Test() {
                     if (msg === "RECV READY") {
                         ws.send(packBinaryData(maxPacketSize));
                     } else if (msg === "RECV DONE") {
+                        setStatus(SocketStatus.UploadDone);
                         ws.close();
                         resolve(latency);
                     } else if (msg.startsWith("ACK")) {
@@ -90,63 +113,71 @@ export function Test() {
             };
         });
     function test() {
-        downloadSpeed()
-            .then((data: number[]) => {
-                const speed = Math.floor(
-                    calculateAverageSpeed(data, maxPacketSize) * 0.008
-                );
-                const latency = Math.floor(calculateAverageLatency(data));
+        handshake().then((latency) => {
+            setMetrics((prev) => {
+                return {
+                    ...prev,
+                    latency: latency,
+                };
+            });
+            return downloadSpeed();
+        }).then((data: number[]) => {
+            const speed = Math.floor(
+                calculateAverageSpeed(data, maxPacketSize) * 0.008
+            );
+            const latency = Math.floor(calculateAverageLatency(data));
 
-                setMetrics((prev) => {
-                    return {
-                        ...prev,
-                        downloadSpeed: speed,
-                        downloadLatency: latency,
-                    };
-                });
-                // localStorage.setItem(
-                //     "Results",
-                //     JSON.stringify([
-                //         ...JSON.parse(localStorage.getItem("Results") || "[]"),
-                //         result,
-                //     ])
-                // );
-                return uploadSpeedTest();
-            }).then((data: number[]) => {
-                const speed = Math.floor(
-                    calculateAverageSpeed(data, maxPacketSize) * 0.008
-                );
-                const latency = Math.floor(calculateAverageLatency(data));
-                setMetrics((prev) => {
-                    return {
-                        ...prev,
-                        uploadSpeed: speed,
-                        uploadLatency: latency,
-                    };
-                });
+            setMetrics((prev) => {
+                return {
+                    ...prev,
+                    downloadSpeed: speed,
+                    downloadLatency: latency,
+                };
+            });
+            // localStorage.setItem(
+            //     "Results",
+            //     JSON.stringify([
+            //         ...JSON.parse(localStorage.getItem("Results") || "[]"),
+            //         result,
+            //     ])
+            // );
+            return uploadSpeedTest();
+        }).then((data: number[]) => {
+            const speed = Math.floor(
+                calculateAverageSpeed(data, maxPacketSize) * 0.008
+            );
+            console.log(totalBytes, maxPacketSize, speed, data);
+            const latency = Math.floor(calculateAverageLatency(data));
+            setMetrics((prev) => {
+                return {
+                    ...prev,
+                    uploadSpeed: speed,
+                    uploadLatency: latency,
+                };
+            });
 
-            })
-            .catch((error) => { console.log(error); });
+        }).catch((error) => { console.log(error); }).catch((error) => {
+            console.log(error);
+        });
     }
     return (
-        <div className="flex flex-col gap-4 justify-center items-center w-[800px]">
+        <div className="flex flex-col gap-16 justify-center items-center w-[800px]">
             {status === SocketStatus.Initialize ? (
-                <div className="flex gap-4">
+                <div className="flex gap-6 h-[108px] items-end">
                     <button
-                        className="bg-none border-none p-0 cursor-pointer"
+                        className="bg-none border-none p-0 cursor-pointer flex gap-2 font-semibold text-[#fff] text-[12px] justify-center items-center"
                         onClick={() => setIsOpen(true)}
                     >
-                        <BadgeText
-                            text={"SETTINGS"}
-                            icon="settings"
-                            customClass="flex w-[400px] justify-end"
-                        ></BadgeText>
+                        <FontAwesomeIcon icon={faGear} color="#9193a8" size="lg"></FontAwesomeIcon>
+                        SETTINGS
                     </button>
-                    <BadgeText
-                        text={"RESULTS"}
-                        icon="yes"
-                        customClass="flex w-[400px] justify-start"
-                    ></BadgeText>
+                    <button
+                        className="bg-none border-none p-0 cursor-pointer flex gap-2 font-semibold text-[#fff] text-[12px] justify-center items-center"
+                        onClick={() => setIsOpen(true)}
+                    >
+                        <FontAwesomeIcon icon={faCheck} color="#9193a8" size="lg"></FontAwesomeIcon>
+                        RESULTS
+                    </button>
                 </div>
             ) : (
                 <Metrics data={metrics}></Metrics>
@@ -154,8 +185,10 @@ export function Test() {
             <button onClick={test} className="bg-none border-none p-0 cursor-pointer">
                 <Circle
                     percentage={percentage}
-                    classname={"#1cbfff"}
-                    text={"GO"}
+                    classname={status === SocketStatus.Downloading ? "#6afff3" : "#bf71ff"}
+                    text={status === SocketStatus.Initialize ? "GO" : status === SocketStatus.Downloading ?
+                        (<FontAwesomeIcon icon={faArrowDown} color="#6afff3"></FontAwesomeIcon>) : (<FontAwesomeIcon icon={faArrowUp} color="#bf71ff"></FontAwesomeIcon>)
+                    }
                 ></Circle>
             </button>
             <Dialogbox
