@@ -85,7 +85,6 @@ export function Test() {
             const maxPacket = totalBytes / maxPacketSize;
             const latency: number[] = new Array(totalBytes / maxPacketSize);
             ws.onopen = () => {
-                console.log("Connected");
                 ws.send(`RECV PREP ${totalBytes} ${maxPacketSize}`);
             };
             ws.onerror = (error) => {
@@ -95,6 +94,7 @@ export function Test() {
                 const { data: msg } = message;
                 if (typeof msg === "string") {
                     if (msg === "RECV READY") {
+                        setStatus(SocketStatus.Uploading);
                         ws.send(packBinaryData(maxPacketSize));
                     } else if (msg === "RECV DONE") {
                         setStatus(SocketStatus.UploadDone);
@@ -139,7 +139,6 @@ export function Test() {
             const speed = Math.floor(
                 calculateAverageSpeed(data, maxPacketSize) * 0.008
             );
-            console.log(totalBytes, maxPacketSize, speed, data);
             const latency = Math.floor(calculateAverageLatency(data));
             setMetrics((prev) => {
                 return {
@@ -179,8 +178,9 @@ export function Test() {
                 <Circle
                     percentage={percentage}
                     classname={status === SocketStatus.Downloading ? "#6afff3" : "#bf71ff"}
-                    text={status === SocketStatus.Initialize ? "GO" : status === SocketStatus.Downloading ?
-                        (<FontAwesomeIcon icon={faArrowDown} color="#6afff3"></FontAwesomeIcon>) : (<FontAwesomeIcon icon={faArrowUp} color="#bf71ff"></FontAwesomeIcon>)
+                    text={status === SocketStatus.Initialize || status === SocketStatus.UploadDone ? "GO" : status === SocketStatus.Downloading ?
+                        (<FontAwesomeIcon icon={faArrowDown} color="#6afff3" className="animate-bounce"></FontAwesomeIcon>) :
+                        (<FontAwesomeIcon icon={faArrowUp} color="#bf71ff" className="animate-bounce"></FontAwesomeIcon>)
                     }
                 ></Circle>
             </button>

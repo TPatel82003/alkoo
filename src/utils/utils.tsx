@@ -54,7 +54,6 @@ export function calculateAverageSpeed(
     fixBytesSize: number
 ): number {
     speed = speed.map((s) => fixBytesSize / s);
-    console.log(speed);
     return speed.reduce((acc, curr) => acc + curr, 0) / speed.length;
 }
 
